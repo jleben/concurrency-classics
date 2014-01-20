@@ -69,3 +69,7 @@ This is from a problem set written by Anthony Joseph at U.C. Berkeley.  Somewher
 As each thread boards the boat it should invoke a function called board. You must guarantee that all four threads from each boatload invoke board before any of the threads from the next boatload do. After all four threads have invoked board, exactly one of them should call a function named rowBoat, indicating that that thread will take the oars. It doesn’t matter which thread calls the function, as long as one does. Don’t worry about the direction of travel. Assume we are only interested in traffic going in one of the directions.
 
 Ok gang, BEGIN EXECUTING!!!!!   I made this a "forum page" (I hope) so that you can post your thoughts on this as well!
+
+
+Berkeley problems & solutions:
+https://inst.eecs.berkeley.edu/~cs162/sp14/hand-outs/synch-problems.html
