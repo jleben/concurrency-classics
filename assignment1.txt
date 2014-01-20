@@ -1,0 +1,71 @@
+For this assignment, you will spend a little time with what many people would consider to be some of the classic representative problems in the “culture” of concurrency.   These problems map directly into scenarios originally encountered in operating systems code, but as we’ll see in the course, they certainly are becoming more relevant to application programming in today’s multicore environments as well—depending on the underlying infrastructure involved!
+
+Feel free to work in teams of 2-3 people. If you do work with others, please clearly identify who did what in terms of the contributions to the overall assignment.  Similarly, feel free to use any solutions you can find, but please do reference the original authors of the work, and clearly note the modifications you have introduced!
+
+
+
+Deliverables
+
+For each of the 6 problems below, compare/contrast 3 different solutions.  You can use any programming platform you like, and the metrics you use to compare/contrast should be geared at determining which implementation is “best”, which is “worst”, and which is somewhere in between in terms of concurrency.  Implementations that have a race condition, deadlock or starvation, should be good candidates in the “worst” category for most implementations.
+
+
+
+Problem 1: Dining philosophers!!!
+
+The Dining Philosophers Problem was proposed by Dijkstra in 1965. It appears in a number of variations, but the standard features are a table with five plates, five forks (or chopsticks) and a big bowl of spaghetti. Five philosophers, who represent interacting threads, come to the table and execute the following loop:
+
+while true:
+  think()
+  get_forks()
+  eat()
+  put_forks()
+
+The thing that makes the problem interesting, unrealistic, and unsanitary, is that the philosophers need two  forks to eat, so a hungry philosopher might have to wait for a neighbor to put down a fork.
+
+
+
+Problem 2: Cigarette smokers problem!!!
+
+The cigarette smokers problem problem was originally presented by Suhas Patil in 1971.  It’s very fun because it was in response to Dijkstra’s claim the semaphores could solve everything!  Four threads are involved: an agent and three smokers. The smokers loop forever, first waiting for ingredients, then making and smoking cigarettes. The ingredients are tobacco, paper, and matches.
+
+We assume that the agent has an infinite supply of all three ingredients, and each smoker has an infinite supply of one of the ingredients; that is, one smoker has matches, another has paper, and the third has tobacco.
+
+The agent repeatedly chooses two different ingredients at random and makes them available to the smokers. Depending on which ingredients are chosen, the smoker with the complementary ingredient should pick up both resources and proceed. For example, if the agent puts out tobacco and paper, the smoker with the matches should pick up both ingredients, make a cigarette, and then signal the agent.
+
+
+
+Problem 3: The barbershop problem!!!
+
+The original barbershop problem was also proposed by Dijkstra in 1965, with many variations over the years.  A barbershop consists of a waiting room with n chairs, and the barber room containing the barber chair. If there are no customers to be served, the barber goes to sleep. If a customer enters the barbershop and all chairs are occupied, then the customer leaves the shop. If the barber is busy, but chairs are available, then the customer sits in one of the free chairs. If the barber is asleep, the customer wakes up the barber. Write a program to coordinate the barber and the customers.
+
+
+
+Problem 4:  The Santa Claus problem!!!
+
+This problem is from William Stallings’s Operating Systems book in 2000.  Santa Claus sleeps in his shop at the North Pole and can only be awakened by either (1) all nine reindeer being back from their vacation in the South Pacific, or (2) some of the elves having difficulty making toys; to allow Santa to get some sleep, the elves can only wake him when three of them have problems. When three elves are having their problems solved, any other elves wishing to visit Santa must wait for those elves to return. If Santa wakes up to find three elves waiting at his shop’s door, along with the last reindeer having come back from the tropics, Santa has decided that the elves can wait until after Christmas, because it is more important to get his sleigh ready. (It is assumed that the reindeer do not want to leave the tropics, and therefore they stay there until the last possible moment.) The last reindeer to arrive must get Santa while the others wait in a warming hut before being harnessed to the sleigh.
+
+
+
+Problem 5: Building H2O!!!
+
+This problem has been a staple of the Operating Systems class at U.C. Berkeley for at least a decade.   There are two kinds of threads, oxygen and hydrogen. In order to assemble these threads into water molecules, we have to create a barrier that makes each thread wait until a complete molecule is ready to proceed.
+
+As each thread passes the barrier, it should invoke bond. You must guarantee that all the threads from one molecule invoke bond before any of the threads from the next molecule do.
+
+In other words:
+
+• If an oxygen thread arrives at the barrier when no hydrogen threads are present, it has to wait for two hydrogen threads.
+
+• If a hydrogen thread arrives at the barrier when no other threads are present, it has to wait for an oxygen thread and another hydrogen thread.
+
+We don’t have to worry about matching the threads up explicitly; that is, the threads do not necessarily know which other threads they are paired up with. The key is just that threads pass the barrier in complete sets; thus, if we examine the sequence of threads that invoke bond and divide them into groups of three, each group should contain one oxygen and two hydrogen threads. Write synchronization code for oxygen and hydrogen molecules that enforces these constraints.
+
+
+
+Problem 6.  River crossing problem!!!
+
+This is from a problem set written by Anthony Joseph at U.C. Berkeley.  Somewhere on a river bank there is a rowboat that is used by both Go programmers and pThread programmers to cross a river. The ferry can hold exactly four people; it won’t leave the shore with more or fewer. To guarantee the safety of the passengers, it is not permissible to put one Go programmer in the boat with three pThread programmers, or to put one pThread programmer with three Go programmers. Any other combination is safe.
+
+As each thread boards the boat it should invoke a function called board. You must guarantee that all four threads from each boatload invoke board before any of the threads from the next boatload do. After all four threads have invoked board, exactly one of them should call a function named rowBoat, indicating that that thread will take the oars. It doesn’t matter which thread calls the function, as long as one does. Don’t worry about the direction of travel. Assume we are only interested in traffic going in one of the directions.
+
+Ok gang, BEGIN EXECUTING!!!!!   I made this a "forum page" (I hope) so that you can post your thoughts on this as well!
