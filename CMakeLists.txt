@@ -16,3 +16,7 @@ add_app(philosophers cpp/dining_philosophers.cpp)
 add_app(smokers cpp/cigarette_smokers.cpp)
 
 add_app(barber cpp/sleeping_barber.cpp)
+
+add_app(h2o cpp/h2o.cpp)
+
+add_app(test-condition cpp/test_condition_variable.cpp)
