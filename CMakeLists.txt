@@ -19,4 +19,6 @@ add_app(barber cpp/sleeping_barber.cpp)
 
 add_app(h2o cpp/h2o.cpp)
 
+add_app(river cpp/river_crossing.cpp)
+
 add_app(test-condition cpp/test_condition_variable.cpp)
