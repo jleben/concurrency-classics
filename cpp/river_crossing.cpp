@@ -41,10 +41,7 @@ public:
       ++waiting_goers;
     else
       ++waiting_pthreaders;
-/*
-    if (!boarding)
-      try_form_group();
-*/
+
     if (p == goer)
     {
       while(!allowed_goers)
