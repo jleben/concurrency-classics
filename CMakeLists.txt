@@ -17,6 +17,8 @@ add_app(smokers cpp/cigarette_smokers.cpp)
 
 add_app(barber cpp/sleeping_barber.cpp)
 
+add_app(santa cpp/santa_claus.cpp)
+
 add_app(h2o cpp/h2o.cpp)
 
 add_app(river cpp/river_crossing.cpp)
