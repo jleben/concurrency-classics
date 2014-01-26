@@ -18,6 +18,8 @@ add_app(smokers cpp/cigarette_smokers.cpp)
 add_app(barber cpp/sleeping_barber.cpp)
 
 add_app(santa cpp/santa_claus.cpp)
+add_app(santa2 cpp/santa_claus_2.cpp)
+add_app(santa3 cpp/santa_claus_3.cpp)
 
 add_app(h2o cpp/h2o.cpp)
 
