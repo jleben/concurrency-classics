@@ -131,7 +131,7 @@ public:
     m_process(p)
   {}
 
-  void signal( const T& value = T() )
+  void notify( const T& value = T() )
   {
     m_process->notify(*m_channel, value);
   }

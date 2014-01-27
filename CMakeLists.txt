@@ -15,13 +15,15 @@ add_app(philosophers cpp/dining_philosophers.cpp)
 add_app(philosophers-csp cpp/dining_philosophers_csp.cpp)
 
 add_app(smokers cpp/cigarette_smokers.cpp)
+add_app(smokers-csp cpp/cigarette_smokers_csp.cpp)
 
 add_app(barber cpp/sleeping_barber.cpp)
+add_app(barber-csp cpp/sleeping_barber_csp.cpp)
 
 add_app(santa cpp/santa_claus.cpp)
 add_app(santa2 cpp/santa_claus_2.cpp)
 add_app(santa3 cpp/santa_claus_3.cpp)
-add_app(santa4 cpp/santa_claus_4.cpp)
+add_app(santa-csp cpp/santa_claus_csp.cpp)
 
 add_app(h2o cpp/h2o.cpp)
 add_app(h2o-csp cpp/h2o_csp.cpp)
