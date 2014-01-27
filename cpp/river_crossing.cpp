@@ -1,4 +1,5 @@
 #include "river_crossing.hpp"
+#include "util.hpp"
 
 #include <thread>
 #include <mutex>
@@ -72,66 +73,47 @@ private:
   {
     unique_lock<mutex> lock(m_mutex);
 
-    if (p == go)
-      ++waiting_goers;
-    else
-      ++waiting_pthreaders;
+    int & waiting_count = p == go ? waiting_goers : waiting_pthreaders;
+    int & allowed_count = p == go ? allowed_goers : allowed_pthreaders;
 
-    if (p == go)
+    ++waiting_count;
+
+    while(!allowed_count)
     {
-      while(!allowed_goers)
-      {
-        if (boarding || !try_form_group())
-          m_board_gate.wait(lock);
-      }
-
-      --waiting_goers;
-      --allowed_goers;
-    }
-    else
-    {
-      while(!allowed_pthreaders)
-      {
-        if (boarding || !try_form_group())
-          m_board_gate.wait(lock);
-      }
-
-      --waiting_pthreaders;
-      --allowed_pthreaders;
+      if (!try_form_group())
+        m_board_gate.wait(lock);
     }
 
-    //board(p);
+    --waiting_count;
+    --allowed_count;
+
+    board(p);
 
     if (allowed_goers == 0 && allowed_pthreaders == 0)
     {
       boarding = false;
       m_board_gate.notify_all();
-      //row();
-
+      row();
     }
   }
 
   void board(passenger_type p)
   {
-    //group += p == go ? 'G' : 'P';
+    group += p == go ? 'G' : 'P';
   }
 
   void row()
   {
+    PRINT(group);
     /*
-    cout << group;
-
     if (group.size() != 4 ||
         count(group.begin(), group.end(), 'G') == 1 ||
         count(group.begin(), group.end(), 'P') == 1)
     {
       cout << " ERROR!";
     }
-
-    cout << endl;
-
-    group.clear();
     */
+    group.clear();
   }
 
   bool try_form_group()
