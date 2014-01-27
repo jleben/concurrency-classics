@@ -1,3 +1,4 @@
+#include "river_crossing.hpp"
 
 #include <thread>
 #include <mutex>
@@ -15,11 +16,7 @@
 using namespace std;
 using namespace std::chrono;
 
-enum programmer
-{
-  goer,
-  pthreader
-};
+collector collect;
 
 struct boat
 {
@@ -33,16 +30,51 @@ public:
     boarding(false)
   {}
 
-  void enqueue( programmer p )
+  void run()
+  {
+    random_device rd;
+    static minstd_rand R(rd());
+    static uniform_int_distribution<int> U(0,1);
+
+    while(true)
+    {
+
+      collect.lock();
+      int passenger_index = collect.passenger_count++;
+      int passenger_count = collect.passenger_count;
+      collect.unlock();
+
+      if (passenger_count >= TOTAL_PASSENGER_COUNT)
+        break;
+
+      int passenger_type_coin = U(R);
+      passenger_type p = passenger_type_coin < 1 ? go : pthread;
+
+      collect.passengers[passenger_index].type = p;
+      collect.passengers[passenger_index].start_time = high_resolution_clock::now();
+
+      enqueue(p);
+
+      collect.passengers[passenger_index].end_time = high_resolution_clock::now();
+      collect.passengers[passenger_index].boarded = true;
+
+      this_thread::sleep_for(milliseconds(5));
+    }
+
+    collect.notify_end();
+  }
+
+private:
+  void enqueue( passenger_type p )
   {
     unique_lock<mutex> lock(m_mutex);
 
-    if (p == goer)
+    if (p == go)
       ++waiting_goers;
     else
       ++waiting_pthreaders;
 
-    if (p == goer)
+    if (p == go)
     {
       while(!allowed_goers)
       {
@@ -65,23 +97,25 @@ public:
       --allowed_pthreaders;
     }
 
-    board(p);
+    //board(p);
 
     if (allowed_goers == 0 && allowed_pthreaders == 0)
     {
       boarding = false;
       m_board_gate.notify_all();
-      row();
+      //row();
+
     }
   }
 
-  void board(programmer p)
+  void board(passenger_type p)
   {
-    group += p == goer ? 'G' : 'P';
+    //group += p == go ? 'G' : 'P';
   }
 
   void row()
   {
+    /*
     cout << group;
 
     if (group.size() != 4 ||
@@ -94,9 +128,9 @@ public:
     cout << endl;
 
     group.clear();
+    */
   }
 
-private:
   bool try_form_group()
   {
     if (boarding)
@@ -129,7 +163,6 @@ private:
     return true;
   }
 
-
   mutex m_mutex;
   condition_variable m_board_gate;
 
@@ -148,29 +181,45 @@ int main()
 {
   boat b;
 
-  minstd_rand r;
-  uniform_int_distribution<int> u(0,4);
+  const int thread_count = 10;
+  thread t[thread_count];
 
-  minstd_rand r2;
-  uniform_int_distribution<int> u2(10, 30);
-
-  while(true)
+  for (int i = 0; i < thread_count; ++i)
   {
-    cout << "------------------" << endl;
-
-    int batch_count = 50;
-    while( batch_count-- )
-    {
-      int choice = u(r);
-      programmer p = choice < 4 ? goer : pthreader;
-
-      thread t( &boat::enqueue, &b, p );
-      t.detach();
-    }
-    //this_thread::sleep_for(milliseconds(u2(r)));
-    this_thread::sleep_for(milliseconds(500));
+    t[i] = thread(&boat::run, &b);
   }
 
-  cout << "ending..." << endl;
-  this_thread::sleep_for(milliseconds(100));
+  collect.wait_for_end();
+
+  cout << "over" << endl;
+
+  high_resolution_clock::duration avg_time(0);
+  size_t boarded_count = 0;
+
+  for (int i = 0; i < TOTAL_PASSENGER_COUNT; ++i)
+  {
+    passenger_data &p = collect.passengers[i];
+    cout << "Passenger " << i << ":";
+    if (p.boarded)
+    {
+      ++boarded_count;
+      auto time = p.end_time - p.start_time;
+      avg_time += time;
+      duration<double, micro> print_time = time;
+      cout << " waiting time:" << print_time.count();
+    }
+    else
+    {
+      cout << " not boarded";
+    }
+    cout << endl;
+  }
+
+  avg_time /= boarded_count;
+  cout << " avg time = " << duration<double, micro>(avg_time).count() << endl;
+
+#if 0
+  for (int i = 0; i < thread_count; ++i)
+    t[i].join();
+#endif
 }
