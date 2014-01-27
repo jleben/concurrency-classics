@@ -21,15 +21,12 @@ add_app(barber cpp/sleeping_barber.cpp)
 add_app(barber-csp cpp/sleeping_barber_csp.cpp)
 
 add_app(santa cpp/santa_claus.cpp)
-add_app(santa2 cpp/santa_claus_2.cpp)
-add_app(santa3 cpp/santa_claus_3.cpp)
 add_app(santa-csp cpp/santa_claus_csp.cpp)
 
 add_app(h2o cpp/h2o.cpp)
 add_app(h2o-csp cpp/h2o_csp.cpp)
 
 add_app(river cpp/river_crossing.cpp)
-add_app(river2 cpp/river_crossing_2.cpp)
 add_app(river-csp cpp/river_crossing_csp.cpp)
 
 add_app(test-condition cpp/test_condition_variable.cpp)
