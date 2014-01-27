@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <queue>
 #include <algorithm>
-#include <cstdint>
 
 using namespace std;
 using namespace std::chrono;
@@ -39,32 +38,30 @@ public:
 
     while(true)
     {
-      this_thread::sleep_for(milliseconds(THREAD_SLEEP_TIME));
 
-      int passenger_index = metrics.arrived_passenger_count.fetch_add(1, memory_order_relaxed);
+      metrics.lock();
+      int passenger_index = metrics.arrived_passenger_count++;
+      int passenger_count = metrics.arrived_passenger_count;
+      metrics.unlock();
+
+      if (passenger_count >= TOTAL_PASSENGER_COUNT)
+        break;
 
       int passenger_type_coin = U(R);
       passenger_type p = passenger_type_coin < 1 ? go : pthread;
 
-      high_resolution_clock::time_point start_time = high_resolution_clock::now();
+      metrics.passengers[passenger_index].type = p;
+      metrics.passengers[passenger_index].start_time = high_resolution_clock::now();
 
       embark(p);
 
-      high_resolution_clock::time_point end_time = high_resolution_clock::now();
+      metrics.passengers[passenger_index].end_time = high_resolution_clock::now();
+      metrics.passengers[passenger_index].boarded = true;
 
-      int departed_passenger_index = metrics.departed_passenger_count.fetch_add(1, memory_order_relaxed);
-      if (departed_passenger_index >= TOTAL_PASSENGER_COUNT)
-        break;
-
-      passenger_data & metric = metrics.passengers[departed_passenger_index];
-      metric.type = p;
-      metric.boarded = true;
-      metric.start_time = start_time;
-      metric.end_time = end_time;
-
-      if (departed_passenger_index == TOTAL_PASSENGER_COUNT - 1)
-        metrics.notify_end();
+      this_thread::sleep_for(milliseconds(THREAD_SLEEP_TIME));
     }
+
+    metrics.notify_end();
   }
 
 private:
@@ -81,8 +78,8 @@ private:
     {
       while(!allowed_goers)
       {
-        if (boarding || !try_form_group())
-          m_board_gate.wait(lock);
+        if (boarding || !try_form_group(p))
+          m_go_can_board.wait(lock);
       }
 
       --waiting_goers;
@@ -92,8 +89,8 @@ private:
     {
       while(!allowed_pthreaders)
       {
-        if (boarding || !try_form_group())
-          m_board_gate.wait(lock);
+        if (boarding || !try_form_group(p))
+          m_pthread_can_board.wait(lock);
       }
 
       --waiting_pthreaders;
@@ -105,7 +102,7 @@ private:
     if (allowed_goers == 0 && allowed_pthreaders == 0)
     {
       boarding = false;
-      m_board_gate.notify_all();
+      m_go_can_board.notify_one();
       //row();
 
     }
@@ -134,7 +131,7 @@ private:
     */
   }
 
-  bool try_form_group()
+  bool try_form_group(passenger_type p)
   {
     if (boarding)
       return false;
@@ -143,14 +140,40 @@ private:
     {
       allowed_goers = 2;
       allowed_pthreaders = 2;
+      if (p == go)
+      {
+        notify_go(1);
+        notify_pthread(2);
+      }
+      else
+      {
+        notify_go(2);
+        notify_pthread(1);
+      }
     }
     else if (waiting_goers >= 4)
     {
       allowed_goers = 4;
+      if (p == go)
+      {
+        notify_go(3);
+      }
+      else
+      {
+        notify_go(4);
+      }
     }
     else if (waiting_pthreaders >= 4)
     {
       allowed_pthreaders = 4;
+      if (p == go)
+      {
+        notify_pthread(4);
+      }
+      else
+      {
+        notify_pthread(3);
+      }
     }
     else
       return false;
@@ -162,12 +185,24 @@ private:
     cout << "allowed_pthreaders = " << allowed_pthreaders << endl;
 #endif
     boarding = true;
-    m_board_gate.notify_all();
     return true;
   }
 
+  void notify_go(int count)
+  {
+    while(count--)
+      m_go_can_board.notify_one();
+  }
+
+  void notify_pthread(int count)
+  {
+    while(count--)
+      m_pthread_can_board.notify_one();
+  }
+
   mutex m_mutex;
-  condition_variable m_board_gate;
+  condition_variable m_go_can_board;
+  condition_variable m_pthread_can_board;
 
   int waiting_goers;
   int waiting_pthreaders;
@@ -184,7 +219,7 @@ int main()
 {
   boat b;
 
-  const int thread_count = THREAD_COUNT;
+  const int thread_count = 10;
   thread t[thread_count];
 
   for (int i = 0; i < thread_count; ++i)
@@ -197,9 +232,6 @@ int main()
   cout << "over" << endl;
 
   high_resolution_clock::duration avg_time(0);
-  high_resolution_clock::duration max_time(0);
-  uint64_t time_std = 0;
-
   size_t boarded_count = 0;
 
   for (int i = 0; i < TOTAL_PASSENGER_COUNT; ++i)
@@ -211,11 +243,8 @@ int main()
       ++boarded_count;
       auto time = p.end_time - p.start_time;
       avg_time += time;
-      if (time > max_time)
-        max_time = time;
-
       duration<double, micro> print_time = time;
-      cout << " Time = " << print_time.count();
+      cout << " waiting time:" << print_time.count();
     }
     else
     {
@@ -225,31 +254,7 @@ int main()
   }
 
   avg_time /= boarded_count;
-
-  for (int i = 0; i < TOTAL_PASSENGER_COUNT; ++i)
-  {
-    passenger_data &p = metrics.passengers[i];
-    if (p.boarded)
-    {
-      auto time = p.end_time - p.start_time;
-      int64_t t = time.count();
-      int64_t avg = avg_time.count();
-      int64_t d = t - avg;
-      time_std += d * d;
-    }
-  }
-
-  time_std /= boarded_count;
-  time_std = std::sqrt(time_std);
-
-  high_resolution_clock::duration total_time =
-      metrics.passengers[TOTAL_PASSENGER_COUNT-1].end_time -
-      metrics.passengers[0].end_time;
-
-  cout << "Total time = " << duration<double, milli>(total_time).count() << " ms " << endl;
-  cout << "Average time = " << duration<double, micro>(avg_time).count() << " us "<< endl;
-  cout << "Max time = " << duration<double, micro>(max_time).count() << " us " << endl;
-  cout << "Time STD = " << duration<double, micro>( high_resolution_clock::duration(time_std) ).count() << " us " << endl;
+  cout << " avg time = " << duration<double, micro>(avg_time).count() << endl;
 
 #if 0
   for (int i = 0; i < thread_count; ++i)

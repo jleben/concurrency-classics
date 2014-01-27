@@ -44,6 +44,11 @@ public:
     m_thread = thread(&process::work, this);
   }
 
+  void join()
+  {
+    m_thread.join();
+  }
+
 protected:
   virtual void work() = 0;
 
