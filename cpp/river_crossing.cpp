@@ -53,7 +53,7 @@ public:
       collect.passengers[passenger_index].type = p;
       collect.passengers[passenger_index].start_time = high_resolution_clock::now();
 
-      enqueue(p);
+      embark(p);
 
       collect.passengers[passenger_index].end_time = high_resolution_clock::now();
       collect.passengers[passenger_index].boarded = true;
@@ -65,7 +65,7 @@ public:
   }
 
 private:
-  void enqueue( passenger_type p )
+  void embark( passenger_type p )
   {
     unique_lock<mutex> lock(m_mutex);
 
