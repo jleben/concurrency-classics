@@ -3,7 +3,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#define TOTAL_PASSENGER_COUNT 1000
+#define TOTAL_PASSENGER_COUNT 100
 
 using namespace std;
 
@@ -15,7 +15,11 @@ enum passenger_type
 
 struct passenger_data
 {
-  chrono::high_resolution_clock::time_point start_time, end_time;
+  passenger_data():
+    boarded(false)
+  {}
+
+  std::chrono::high_resolution_clock::time_point start_time, end_time;
   passenger_type type;
   bool boarded;
   //unsigned int boat_no;
