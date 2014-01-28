@@ -5,9 +5,11 @@
 #include <atomic>
 #include <thread>
 
-#define TOTAL_PASSENGER_COUNT 10000
-#define THREAD_COUNT 200
+#define THREAD_COUNT 50
 #define THREAD_SLEEP_TIME 0
+
+constexpr int max_boat_count = 1000;
+constexpr int max_passenger_count = max_boat_count * 4;
 
 using namespace std;
 
@@ -33,6 +35,7 @@ struct collector
 {
   collector():
     arrived_passenger_count(0),
+    departed_passenger_count(0),
     boat_count(0)
   {}
 
@@ -40,7 +43,7 @@ struct collector
   atomic<int> departed_passenger_count;
   atomic<int> boat_count;
 
-  passenger_data passengers[TOTAL_PASSENGER_COUNT];
+  passenger_data passengers[max_passenger_count];
 
   mutex mux;
   condition_variable over;
@@ -58,8 +61,7 @@ struct collector
   void wait_for_end()
   {
     unique_lock<mutex> lock(mux);
-    while(arrived_passenger_count < TOTAL_PASSENGER_COUNT)
+    while(boat_count < max_boat_count)
       over.wait(lock);
-    //std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 };

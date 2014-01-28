@@ -42,19 +42,27 @@ public:
     {
       this_thread::sleep_for(milliseconds(THREAD_SLEEP_TIME));
 
-      int passenger_index = metrics.arrived_passenger_count.fetch_add(1, memory_order_relaxed);
+      int passenger_index = metrics.arrived_passenger_count++;
 
       int passenger_type_coin = U(R);
       passenger_type p = passenger_type_coin < 1 ? go : pthread;
 
       high_resolution_clock::time_point start_time = high_resolution_clock::now();
 
-      embark(p);
+      bool is_captain;
+      embark(p, is_captain);
 
       high_resolution_clock::time_point end_time = high_resolution_clock::now();
 
-      int departed_passenger_index = metrics.departed_passenger_count.fetch_add(1, memory_order_relaxed);
-      if (departed_passenger_index >= TOTAL_PASSENGER_COUNT)
+      if (is_captain)
+      {
+        int boat_count = ++metrics.boat_count;
+        if (boat_count == max_boat_count)
+            metrics.notify_end();
+      }
+
+      int departed_passenger_index = metrics.departed_passenger_count++;
+      if (departed_passenger_index >= max_passenger_count)
         break;
 
       passenger_data & metric = metrics.passengers[departed_passenger_index];
@@ -62,14 +70,11 @@ public:
       metric.boarded = true;
       metric.start_time = start_time;
       metric.end_time = end_time;
-
-      if (departed_passenger_index == TOTAL_PASSENGER_COUNT - 1)
-        metrics.notify_end();
     }
   }
 
 private:
-  void embark( passenger_type p )
+  void embark( passenger_type p, bool & is_captain )
   {
     unique_lock<mutex> lock(m_mutex);
 
@@ -91,9 +96,14 @@ private:
 
     if (allowed_goers == 0 && allowed_pthreaders == 0)
     {
+      is_captain = true;
       boarding = false;
       m_board_gate.notify_all();
       row();
+    }
+    else
+    {
+      is_captain = false;
     }
   }
 
@@ -169,12 +179,16 @@ int main()
   const int thread_count = THREAD_COUNT;
   thread t[thread_count];
 
+  high_resolution_clock::time_point external_start_time = high_resolution_clock::now();
+
   for (int i = 0; i < thread_count; ++i)
   {
     t[i] = thread(&boat::run, &b);
   }
 
   metrics.wait_for_end();
+
+  high_resolution_clock::time_point external_end_time = high_resolution_clock::now();
 
   cout << "over" << endl;
 
@@ -184,7 +198,7 @@ int main()
 
   size_t boarded_count = 0;
 
-  for (int i = 0; i < TOTAL_PASSENGER_COUNT; ++i)
+  for (int i = 0; i < max_passenger_count; ++i)
   {
     passenger_data &p = metrics.passengers[i];
     cout << "Passenger " << i << ":";
@@ -208,7 +222,7 @@ int main()
 
   avg_time /= boarded_count;
 
-  for (int i = 0; i < TOTAL_PASSENGER_COUNT; ++i)
+  for (int i = 0; i < max_passenger_count; ++i)
   {
     passenger_data &p = metrics.passengers[i];
     if (p.boarded)
@@ -225,10 +239,14 @@ int main()
   time_std = std::sqrt(time_std);
 
   high_resolution_clock::duration total_time =
-      metrics.passengers[TOTAL_PASSENGER_COUNT-1].end_time -
+      metrics.passengers[max_passenger_count-1].end_time -
       metrics.passengers[0].end_time;
 
+  duration<double, milli> external_total_time =
+      external_end_time - external_start_time;
+
   cout << "Total time = " << duration<double, milli>(total_time).count() << " ms " << endl;
+  cout << "Total time (external) = " << external_total_time.count() << " ms " << endl;
   cout << "Average time = " << duration<double, micro>(avg_time).count() << " us "<< endl;
   cout << "Max time = " << duration<double, micro>(max_time).count() << " us " << endl;
   cout << "Time STD = " << duration<double, micro>( high_resolution_clock::duration(time_std) ).count() << " us " << endl;
