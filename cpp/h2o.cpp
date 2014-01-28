@@ -17,22 +17,10 @@
 using namespace std;
 using namespace std::chrono;
 
-struct element
+enum element
 {
-  bool bonded;
-  element():
-    bonded(false)
-  {}
-};
-
-struct hydrogen : public element
-{
-
-};
-
-struct oxygen : public element
-{
-
+  hydrogen,
+  oxygen
 };
 
   // The official Berkeley solution does not ensure threads actually run
@@ -139,38 +127,25 @@ public:
 struct barrier
 {
   mutex m_mutex;
-
   condition_variable m_stage_gate;
-  condition_variable m_bond_gate;
 
-  int staged_h;
-  int staged_o;
-
-  uint64_t queued_h;
-  uint64_t queued_o;
-
+  int bonded_h;
+  int bonded_o;
   string m_molecule;
 
 public:
 
   barrier():
-    staged_h(0),
-    staged_o(0),
-    queued_h(0),
-    queued_o(0)
+    bonded_h(0),
+    bonded_o(0)
   {}
-
-  bool stage_complete()
-  {
-    return staged_h == 2 && staged_o == 1;
-  }
 
   bool molecule_complete()
   {
     return m_molecule.size() == 3;
   }
 
-  void release_molecule()
+  void print_molecule()
   {
     cout << m_molecule;
     if (std::count(m_molecule.begin(), m_molecule.end(), 'H') != 2)
@@ -180,82 +155,27 @@ public:
     m_molecule.clear();
   }
 
-  void process_hydrogen()
+  void process_element(element e)
   {
-    bool queued = false;
+    int & elem_count = e == hydrogen ? bonded_h : bonded_o;
+    int elem_limit = e == hydrogen ? 2 : 1;
 
     unique_lock<mutex> lock(m_mutex);
 
-    while (staged_h == 2)
+    while (elem_count == elem_limit)
     {
-      if (!queued)
-      {
-        ++queued_h;
-        //cout << "queued H = " << queued_h << endl;
-      }
-      queued = true;
       m_stage_gate.wait(lock);
     }
 
-    if (queued)
-      --queued_h;
+    ++elem_count;
 
-    ++staged_h;
-    //cout << "staged H" << endl;
-
-    while (!stage_complete())
-      m_bond_gate.wait(lock);
-
-    m_bond_gate.notify_all();
-
-    m_molecule += 'H';
-    //cout << "bonded H" << endl;
+    m_molecule += (e == hydrogen ? 'H' : 'O');
 
     if (molecule_complete())
     {
-      release_molecule();
-      staged_h = 0;
-      staged_o = 0;
-      m_stage_gate.notify_all();
-    }
-  }
-
-  void process_oxygen()
-  {
-    bool queued = false;
-
-    unique_lock<mutex> lock(m_mutex);
-
-    while (staged_o == 1)
-    {
-      if (!queued)
-      {
-        ++queued_o;
-        //cout << "queued O = " << queued_o << endl;
-      }
-      queued = true;
-      m_stage_gate.wait(lock);
-    }
-
-    if (queued)
-      --queued_o;
-
-    ++staged_o;
-    //cout << "staged O" << endl;
-
-    while (!stage_complete())
-      m_bond_gate.wait(lock);
-
-    m_bond_gate.notify_all();
-
-    m_molecule += 'O';
-    //cout << "bonded O" << endl;
-
-    if (molecule_complete())
-    {
-      release_molecule();
-      staged_h = 0;
-      staged_o = 0;
+      print_molecule();
+      bonded_h = 0;
+      bonded_o = 0;
       m_stage_gate.notify_all();
     }
   }
@@ -278,20 +198,14 @@ int main()
   {
     cout << "------------------" << endl;
 
-    int batch_count = 50;
+    int batch_count = 100;
     while( batch_count-- )
     {
       int choice = u(r);
-      if (choice == 2)
-      {
-        thread t( &barrier::process_oxygen, &b );
-        t.detach();
-      }
-      else
-      {
-        thread t( &barrier::process_hydrogen, &b );
-        t.detach();
-      }
+      element e = choice == 0 ? oxygen : hydrogen;
+
+      thread t( &barrier::process_element, &b, e );
+      t.detach();
     }
     //this_thread::sleep_for(milliseconds(u2(r)));
     this_thread::sleep_for(milliseconds(500));
