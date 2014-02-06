@@ -24,14 +24,17 @@ are at disadvantage.
 
 Distribution and total timing of 10.000 cycles of thinking and eating
 performed collectively by all philosophers:
+```
 0: 2464
 1: 2266
 2: 2315
 3: 1282
 4: 1673
 Total time = 928.186 ms
+```
 
 With 6 philosophers instead of 5, the distribution is more even:
+```
 0: 1612
 1: 1742
 2: 1634
@@ -39,6 +42,7 @@ With 6 philosophers instead of 5, the distribution is more even:
 4: 1672
 5: 1624
 Total time = 925.85 ms
+```
 
 ### Solution 3 Evaluation
 
@@ -64,10 +68,11 @@ distribution among philosophers is completely fair.
 
 However, as usual in CSP solutions, the extra threads for forks and
 extra synchronization slows down the implementation:
-
+```
 0: 2000
 1: 2000
 2: 2000
 3: 2000
 4: 2000
 Total time = 1.74805 s
+```
