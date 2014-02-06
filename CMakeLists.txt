@@ -15,7 +15,6 @@ add_app(philosophers cpp/dining_philosophers.cpp)
 add_app(philosophers-csp cpp/dining_philosophers_csp.cpp)
 
 add_app(smokers cpp/cigarette_smokers.cpp)
-add_app(smokers-simple cpp/cigarette_smokers_simple.cpp)
 add_app(smokers-csp cpp/cigarette_smokers_csp.cpp)
 
 add_app(barber cpp/sleeping_barber.cpp)
