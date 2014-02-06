@@ -88,6 +88,7 @@ private:
         g_start_time = high_resolution_clock::now();
       if (all_eatings_count == g_max_eatings_count)
         g_end_time = high_resolution_clock::now();
+      //++m_count;
       if (all_eatings_count <= g_max_eatings_count)
         ++m_count;
       if (all_eatings_count >= g_max_eatings_count)
@@ -166,9 +167,9 @@ int main()
                                   &forks[idx], &forks[(idx+1) % count]);
   }
 
-  //this_thread::sleep_for(seconds(1));
+  this_thread::sleep_for(seconds(2));
 
-  //g_dine = false;
+  g_dine = false;
 
   for (int idx = 0; idx < count; ++idx)
   {
