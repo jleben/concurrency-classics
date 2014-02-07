@@ -210,3 +210,120 @@ Again, the non-CSP version proved faster than the CSP one.
 Solution 2: Total time = 1509.6 ms
 
 Solution 3: Total time = 2234.03 ms
+
+
+## Santa Claus
+
+Solution 1 (Jyoti)
+
+Solution 2 (Jakob)
+
+Classical Monitor approach: There is only one global lock, and four condition
+variables. One condition is for elves to wait until there are at least 3 who
+need help. Another is for elves that have visited santa to wait until santa
+has helped the whole group. Another condition variable is for elks to wait
+until all have returned from the tropics. Finally, one condition is for santa
+to wait and get signalled once a group of 3 elves is ready to see him, or all
+elks have returned from the tropics. All conditions are always signalled in
+broadcast mode, and each awaken thread checks shared monitor state to
+determine whether they can continue, and modifies the state accordingly.
+
+Solution 3 (Jakob)
+
+A CSP solution. In order not to wake up santa for each individual elf or
+each individual elk, there are intermediate processes called “elf barrier”
+and “elk barrier” - they have an input channel of type elf or elk, they
+assemble elves or elks into groups, and write to santas input channels of
+type array-of-elves and array-of-elks.
+
+
+
+
+## Building H20
+
+Solution 1 (Jyoti)
+
+Solution 2 (Jakob)
+
+If an element can fill an empty spot in the currently built molecule, it will
+do so right away without waiting, else it will wait until a spot for its type
+becomes empty.
+
+Whenever a molecule is complete, the last element to complete it will wake up
+all the waiting threads, which will again race for the empty spots in the next
+molecule.
+
+This is again a classical monitor approach with one global mutex and a single
+condition variable for elements to wait if there's no spot for their type in
+the molecule.
+
+Solution 3 (Jakob)
+
+A CSP solution. We've got one process for each element, and another process
+to have the role of the molecule builder. The latter has two input channels:
+one for the H and one for the O elements. The elements simply try to write
+to this channel, blocking until their write is accepted. The builder proces
+simply repeatedly awaits inputs in the following pattern: two times on the
+H channel and one time on the O channel...
+
+
+
+## River Crossing
+
+Solution 1 (Jyoti)
+
+Solution 2 (Jakob)
+
+This is a very similar approach to the H2O problem, with additional
+requirement that threads that form a group need to wait for all their
+group-mate threads before continueing. In addition, the grouping rules are
+more complicated, so threads can not know whether they will get a spot in the
+boat until at least 4 threads have arrived at the borading barrier. So no
+thread can ever advance past the barrier without checking that there is enough
+and the right combination of threads to form a boatload. Only the one to arrive
+and find a plausible combination of other threads waiting will continue; it
+will first set shared monitor state so that other threads know how many of
+each type can advance, and wake up all other threads. The last thread to board
+the boat will be the captain, and will wake up all the waiting threads again,
+in case another boat can be filled right after, without another thread arriving.
+
+Solution 3 (Jakob)
+
+This is another CSP solution. Here, just like in the H2O CSP solution, the
+barrier (in this case representing the boat) is another process of its own,
+waiting for passenger threads to write to its two input channels. This time
+however, the situation is complicated because the boat process must know
+how many of each type of passengers are ready to board, but the only way for
+it to get the information is via an input channel: hence, it has to receive
+information from passenger threads *before* actually allowing them to board.
+Therefore, a completed write of a passenger thread can not be interpreted as
+boarding.
+
+In this solution, the boat thread manages two queue data structures: one for
+each type of passengers. It has a single input channel where passenger
+processes write *themselves* (both passenger types being represented by the
+same C++ type). When the boat process receives a passenger process, it
+enqueues it according to its passenger type, and checks how many of each type
+are enqueued. If a valid boatload can be formed, the boat dequeues desired
+passengers and writes *back* to their own channels on which they have been
+awaiting confirmation to board after having been enqueued.
+
+Another interesting issue is the choice of the captain. There is no
+shared information among passenger threads (like the number of threads that
+have boarded) for them to know which one was the last to board and be selected
+as a captain. Since communication channels are always one-to-one, it would
+also be complicated for them to have enough conversation to figure that out.
+Instead, when the boat signals passengers that they are ready to board, it
+writes meaningful information to their channel, which gives each one a role.
+Only one will be given the role of a captain. Moreover, the captain must only
+execute "row" after all co-passengers have boarded. For that purpose, once
+threads have received a role in the boat, they execute "board" and then signal
+back to the boat that they have done so. The boat then waits for those signals
+in such an order that the captain thread's signal is awaited last.
+
+There's actually 2 more slightly different implementations in the same file
+that try to shuffle around who writes to whom and who reads from whom in
+attempts to make the whole concurrent structure more efficient. One of those
+is correct, but proved no faster under time-measurement. Another one is a
+little faster but may deadlock.
+Have a look at the code...
