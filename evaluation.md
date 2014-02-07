@@ -206,7 +206,7 @@ each customer that arrives would get queued. Because we also have a limited
 amount of total threads (20), the maximum queue length is bounded.
 
 Again, the non-CSP version proved faster than the CSP one.
+
 Solution 2: Total time = 1509.6 ms
+
 Solution 3: Total time = 2234.03 ms
-
-
