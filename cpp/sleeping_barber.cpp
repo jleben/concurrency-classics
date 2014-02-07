@@ -1,3 +1,5 @@
+#include "util.hpp"
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -13,6 +15,11 @@
 using namespace std;
 using namespace std::chrono;
 
+#define MEASURE 1
+
+atomic<int> g_done_customer_count(0);
+constexpr int g_total_customer_count(10000);
+
 struct barber_shop;
 
 struct customer
@@ -24,32 +31,25 @@ struct customer
 
   customer( barber_shop * shop ):
     m_cutting_done(false),
-    m_thread( &customer::go_cut_hair, this, shop )
+    m_thread( &customer::run, this, shop )
   {}
 
-  void cut()
+  void notify_done()
   {
-    this_thread::sleep_for(milliseconds(10));
     unique_lock<mutex> locker(m_mutex);
     m_cutting_done = true;
-    cout << "Barber: Sir, how do you like it?" << endl;
     m_signal.notify_all();
-  }
-
-  void release()
-  {
-    m_thread.join();
   }
 
 private:
   void wait_cutting_done()
   {
     unique_lock<mutex> locker(m_mutex);
-    if (!m_cutting_done)
-      m_signal.wait(locker, [&](){ return m_cutting_done; });
+    while(!m_cutting_done)
+      m_signal.wait(locker);
   }
 
-  void go_cut_hair( barber_shop *shop );
+  void run( barber_shop *shop );
 };
 
 struct barber_shop
@@ -67,43 +67,40 @@ struct barber_shop
 
   }
 
-  customer *next_customer()
+  customer *await_next_customer()
   {
     unique_lock<mutex> locker(m_mutex);
+    while(m_queue.empty() && m_open)
+      m_signal.wait(locker);
+
     if (m_queue.empty())
       return nullptr;
 
     customer *next_customer = m_queue.front();
     m_queue.pop();
-    return next_customer;
-  }
 
-  customer *await_next_customer()
-  {
-    unique_lock<mutex> locker(m_mutex);
-    if (m_queue.empty() && m_open)
-      m_signal.wait(locker, [&](){ return !m_queue.empty() || !m_open; });
-
-    if (m_queue.empty() && !m_open)
-      return nullptr;
-
-    customer *next_customer = m_queue.front();
-    m_queue.pop();
     if (m_open)
-      cout << "- Queue = " << m_queue.size() << endl;
+    {
+      PRINT("- Queue = " << m_queue.size());
+    }
     else
-      cout << "- Queue [after hours] = " << m_queue.size() << endl;
+    {
+      PRINT("- Queue [after hours] = " << m_queue.size());
+    }
     return next_customer;
   }
 
   bool take_in(customer *next_customer)
   {
     unique_lock<mutex> locker(m_mutex);
+
+#if !(MEASURE)
     if (m_queue.size() >= m_queue_limit)
       return false;
+#endif
 
     m_queue.push(next_customer);
-    cout << "+ Queue = " << m_queue.size() << endl;
+    PRINT("+ Queue = " << m_queue.size());
 
     m_signal.notify_all();
     return true;
@@ -117,18 +114,32 @@ struct barber_shop
   }
 };
 
-void customer::go_cut_hair( barber_shop *shop )
+void customer::run( barber_shop *shop )
 {
-  bool got_in = shop->take_in(this);
-  if (got_in)
+#if !(MEASURE)
+  random_device rd;
+  minstd_rand R(rd());
+  uniform_int_distribution<int> U(200,600);
+#endif
+
+  while(true)
   {
-    cout << "Customer: Hmmm... how do I want my hair today..." << endl;
-    wait_cutting_done();
-    cout << "Customer: Just what I wanted!" << endl;
-  }
-  else
-  {
-    cout << "Customer: Oh damn. Full again! I'll look like a cow..." << endl;
+    m_cutting_done = false;
+
+    bool got_in = shop->take_in(this);
+    if (got_in)
+    {
+      PRINT("Customer: Waiting is boooooring...");
+      wait_cutting_done();
+      PRINT("Customer: Thanks for the shave!");
+    }
+    else
+    {
+      PRINT("Customer: Oh damn. Full again! I'll look like a bear...");
+    }
+#if !(MEASURE)
+    this_thread::sleep_for(microseconds(U(R)));
+#endif
   }
 }
 
@@ -148,37 +159,53 @@ struct barber
     m_thread.join();
   }
 
+  void join()
+  {
+    m_thread.join();
+  }
+
 private:
   void work()
   {
-    while(true)
+    dummy_worker dummy(1e4);
+    while(g_done_customer_count < g_total_customer_count)
     {
+      PRINT("Barber: waiting...");
       customer *next_customer = m_shop->await_next_customer();
       if (!next_customer)
         break;
-      cout << "Barber: Sir, what will it be?" << endl;
-      next_customer->cut();
-      next_customer->release();
+      PRINT("Barber: got customer.");
+      dummy.work();
+      PRINT("Barber: done customer.");
+      next_customer->notify_done();
+      ++g_done_customer_count;
     }
   }
 };
 
 int main()
 {
-  barber_shop shop(3);
+  barber_shop shop(15);
   barber otto(&shop);
 
-  minstd_rand r;
-  uniform_int_distribution<int> u(2,13);
+  high_resolution_clock::time_point start_time = high_resolution_clock::now();
 
-  int count = 100;
+  int count = 20;
   while(count--)
   {
     new customer(&shop);
-    this_thread::sleep_for(milliseconds(u(r)));
   }
 
-  otto.stop();
+  otto.join();
+
+  high_resolution_clock::time_point end_time = high_resolution_clock::now();
+
+  //this_thread::sleep_for(milliseconds(1000));
+  //int done_count = g_done_customer_count;
+  //cout << "Done: " << done_count << endl;
+
+  duration<double,milli> total_time = end_time - start_time;
+  cout << "Total time = " << total_time.count() << endl;
 }
 
 

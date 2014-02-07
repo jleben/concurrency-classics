@@ -16,8 +16,9 @@ class barber;
 atomic<int> g_arrived_customer_count(0);
 atomic<int> g_done_customer_count(0);
 constexpr int g_total_customer_count(10000);
-constexpr int g_max_queue_size(10);
+constexpr int g_max_queue_size(6);
 constexpr int g_thread_count(20);
+constexpr bool g_measure = true;
 
 class customer : public process
 {
@@ -79,9 +80,11 @@ void customer::work()
     }
     else
     {
-      PRINT("Customer " << index << " rejected.");
-      //this_thread::sleep_for(milliseconds(100));
+      PRINT("Customer " << index << " REJECTED.");
     }
+
+    if (!g_measure)
+      this_thread::sleep_for(milliseconds(1));
   }
 }
 
@@ -102,7 +105,7 @@ void room::work()
     else
     {
       customer *c = await(m_new_customer);
-      if (queue_size < max_queue_size)
+      if (g_measure || queue_size < max_queue_size)
       {
         c->notify_can_enter(true);
         ++queue_size;
@@ -118,10 +121,13 @@ void room::work()
 
 void barber::work()
 {
+  dummy_worker worker(1e4);
+
   while (g_done_customer_count < g_total_customer_count)
   {
     customer *c = await(m_next_customer);
     PRINT("Barber: Cutting customer: " << c->index());
+    worker.work();
     c->notify_cutting_done();
     m_room->notify_barber_free();
     PRINT("Barber: Done customer: " << g_done_customer_count);
@@ -137,6 +143,8 @@ int main()
   r.go();
   b.go();
 
+  high_resolution_clock::time_point start_time = high_resolution_clock::now();
+
   int thread_count = g_thread_count;
   while(thread_count--)
   {
@@ -144,8 +152,8 @@ int main()
     c->go();
   }
 
-  high_resolution_clock::time_point start_time = high_resolution_clock::now();
   b.join();
+
   high_resolution_clock::time_point end_time = high_resolution_clock::now();
 
   duration<double,milli> total_time = end_time - start_time;
